@@ -1,6 +1,12 @@
-type ExampleEntity @entity {
-  id: Bytes!
-  count: BigInt!
-  owner: Bytes! # address
-  approved: Bytes! # address
+type Snapshot @entity {
+  id: String!
+  timestamp: BigInt!
+  user: Bytes!
+  value: BigDecimal!
+}
+
+type SnapshotFull @entity {
+  id: String!
+  user: Bytes!
+  values: [BigDecimal!]
 }

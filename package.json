@@ -7,7 +7,7 @@
     "deploy": "graph deploy --node https://api.studio.thegraph.com/deploy/ example-subgraph",
     "create-local": "graph create --node http://localhost:8020/ example-subgraph",
     "remove-local": "graph remove --node http://localhost:8020/ example-subgraph",
-    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 example-subgraph",
+    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs https://ipfs.io example-subgraph",
     "test": "graph test"
   },
   "dependencies": {

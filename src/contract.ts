@@ -1,4 +1,4 @@
-import { BigInt } from "@graphprotocol/graph-ts"
+import {Address, BigDecimal, BigInt} from "@graphprotocol/graph-ts"
 import {
   Contract,
   Approval,
@@ -6,74 +6,104 @@ import {
   Collect,
   DecreaseLiquidity,
   IncreaseLiquidity,
-  Transfer
+  Transfer,
+  Contract__positionsResult
 } from "../generated/Contract/Contract"
-import { ExampleEntity } from "../generated/schema"
+import {Snapshot, SnapshotFull} from "../generated/schema"
 
-export function handleApproval(event: Approval): void {
-  // Entities can be loaded from the store using a string ID; this ID
-  // needs to be unique across all entities of the same type
-  let entity = ExampleEntity.load(event.transaction.from)
+const liquidity = ['49954253880', '55766298892962304', '12013501874740530845', '1613186886204'];
+const tvl = ['99909.787298', '20409.661212', '215.976725202', '11.859770078']
 
-  // Entities only exist after they have been saved to the store;
-  // `null` checks allow to create entities on demand
-  if (!entity) {
-    entity = new ExampleEntity(event.transaction.from)
-
-    // Entity fields can be set using simple assignments
-    entity.count = BigInt.fromI32(0)
+function getIndexOfPool(positions: Contract__positionsResult): number {
+  const token0 = positions.getToken0();
+  const token1 = positions.getToken1();
+  if (
+    token0.equals(Address.fromString('0xa4f8C7C1018b9dD3be5835bF00f335D9910aF6Bd')) &&
+    token1.equals(Address.fromString('0xeCE555d37C37D55a6341b80cF35ef3BC57401d1A'))
+  ) {
+    return 0;
+  } else if (
+    token0.equals(Address.fromString('0x6C890075406C5DF08b427609E3A2eAD1851AD68D')) &&
+    token1.equals(Address.fromString('0xa4f8C7C1018b9dD3be5835bF00f335D9910aF6Bd'))
+  ) {
+    return 1;
+  } else if (
+    token0.equals(Address.fromString('0x4638C9fb4eFFe36C49d8931BB713126063BF38f9')) &&
+    token1.equals(Address.fromString('0x6C890075406C5DF08b427609E3A2eAD1851AD68D'))
+  ) {
+    return 2;
+  } else if (
+    token0.equals(Address.fromString('0x6C890075406C5DF08b427609E3A2eAD1851AD68D')) &&
+    token1.equals(Address.fromString('0xb0119035d08CB5f467F9ed8Eae4E5f9626Aa7402'))
+  ) {
+    return 3;
   }
-
-  // BigInt and BigDecimal math are supported
-  entity.count = entity.count + BigInt.fromI32(1)
-
-  // Entity fields can be set based on event parameters
-  entity.owner = event.params.owner
-  entity.approved = event.params.approved
-
-  // Entities can be written to the store with `.save()`
-  entity.save()
-
-  // Note: If a handler doesn't require existing field values, it is faster
-  // _not_ to load the entity from the store. Instead, create it fresh with
-  // `new Entity(...)`, set the fields that should be updated and save the
-  // entity back to the store. Fields that were not set or unset remain
-  // unchanged, allowing for partial updates to be applied.
-
-  // It is also possible to access smart contracts from mappings. For
-  // example, the contract that has emitted the event can be connected to
-  // with:
-  //
-  // let contract = Contract.bind(event.address)
-  //
-  // The following functions can then be called on this contract to access
-  // state variables and other data:
-  //
-  // - contract.DOMAIN_SEPARATOR(...)
-  // - contract.PERMIT_TYPEHASH(...)
-  // - contract.WETH9(...)
-  // - contract.balanceOf(...)
-  // - contract.baseURI(...)
-  // - contract.factory(...)
-  // - contract.getApproved(...)
-  // - contract.isApprovedForAll(...)
-  // - contract.name(...)
-  // - contract.ownerOf(...)
-  // - contract.positions(...)
-  // - contract.supportsInterface(...)
-  // - contract.symbol(...)
-  // - contract.tokenByIndex(...)
-  // - contract.tokenOfOwnerByIndex(...)
-  // - contract.tokenURI(...)
-  // - contract.totalSupply(...)
+  return -1;
 }
+
+function calculateLiquidity(positions: Contract__positionsResult): BigDecimal {
+  const token0 = positions.getToken0();
+  const token1 = positions.getToken1();
+  const fee = positions.getFee();
+  const lq = positions.getLiquidity();
+  const tickLower = positions.getTickLower();
+  const tickUpper = positions.getTickUpper();
+  const index = getIndexOfPool(positions);
+  const totalLq = liquidity[i32(index)];
+  const totalTvl = tvl[i32(index)];
+  return new BigDecimal(lq).times(BigDecimal.fromString(totalTvl)).div(BigDecimal.fromString(totalLq));
+}
+
+export function handleApproval(event: Approval): void {}
 
 export function handleApprovalForAll(event: ApprovalForAll): void {}
 
 export function handleCollect(event: Collect): void {}
 
-export function handleDecreaseLiquidity(event: DecreaseLiquidity): void {}
+function handleLiquidity(tokenId: BigInt, addr: Address, timestamp: BigInt): void {
+  const poolContract = Contract.bind(addr);
+  const positions = poolContract.positions(tokenId);
+  const user = poolContract.ownerOf(tokenId);
 
-export function handleIncreaseLiquidity(event: IncreaseLiquidity): void {}
+  const index = getIndexOfPool(positions);
+
+  const ts = Math.ceil(timestamp.toI32() / 3600) * 3600;
+  const sfid = `${user}_account`;
+  let snapshotFull = SnapshotFull.load(sfid);
+  if (snapshotFull == null) {
+    snapshotFull = new SnapshotFull(sfid);
+    snapshotFull.values = [BigDecimal.zero(), BigDecimal.zero(), BigDecimal.zero(), BigDecimal.zero()];
+    snapshotFull.user = user;
+    snapshotFull.save();
+  }
+  // TODO: update value
+  let value = calculateLiquidity(positions);
+  snapshotFull.values![i32(index)] = value || BigDecimal.zero();
+  snapshotFull.save();
+
+  const id = `${user}_hourly_${ts}`;
+  let snapshot = Snapshot.load(id);
+  if (snapshot == null) {
+    snapshot = new Snapshot(id);
+    snapshot.value = snapshotFull.values!.reduce((a, b) => a.plus(b), BigDecimal.zero())
+    snapshot.timestamp = BigInt.fromI32(i32(ts));
+    snapshot.user = user;
+    snapshot.save();
+  }
+}
+
+export function handleDecreaseLiquidity(event: DecreaseLiquidity): void {
+  const tokenId = event.params.tokenId;
+  const addr = event.address;
+  const timestamp = event.block.timestamp;
+  handleLiquidity(tokenId, addr, timestamp);
+}
+
+export function handleIncreaseLiquidity(event: IncreaseLiquidity): void {
+  const tokenId = event.params.tokenId;
+  const addr = event.address;
+  const timestamp = event.block.timestamp;
+  handleLiquidity(tokenId, addr, timestamp);
+}
 
 export function handleTransfer(event: Transfer): void {}

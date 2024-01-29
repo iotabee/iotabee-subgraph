@@ -1,10 +1,10 @@
 specVersion: 0.0.7
-indexerHints:
-  prune: auto
+description: Example ERC20 Transfer Subgraph
 schema:
   file: ./schema.graphql
+
 dataSources:
-  - kind: ethereum
+  - kind: ethereum/contract
     name: Contract
     network: shimmerevm
     source:
@@ -16,24 +16,13 @@ dataSources:
       apiVersion: 0.0.7
       language: wasm/assemblyscript
       entities:
-        - Snapshot
-        - SnapshotFull
+        - Transfer
       abis:
         - name: Contract
           file: ./abis/Contract.json
         - name: Pool
           file: ./abis/Pool.json
       eventHandlers:
-        - event: Approval(indexed address,indexed address,indexed uint256)
-          handler: handleApproval
-        - event: ApprovalForAll(indexed address,indexed address,bool)
-          handler: handleApprovalForAll
-        - event: Collect(indexed uint256,address,uint256,uint256)
-          handler: handleCollect
-        - event: DecreaseLiquidity(indexed uint256,uint128,uint256,uint256)
-          handler: handleDecreaseLiquidity
-        - event: IncreaseLiquidity(indexed uint256,uint128,uint256,uint256)
-          handler: handleIncreaseLiquidity
         - event: Transfer(indexed address,indexed address,indexed uint256)
           handler: handleTransfer
-      file: ./src/contract.ts
+      file: ./src/mapping.ts

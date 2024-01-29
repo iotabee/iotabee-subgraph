@@ -1,12 +1,5 @@
-type Snapshot @entity {
-  id: String!
-  timestamp: BigInt!
-  user: Bytes!
-  value: BigDecimal!
-}
-
-type SnapshotFull @entity {
-  id: String!
-  user: Bytes!
-  values: [BigDecimal!]
+type Transfer @entity {
+  id: ID!
+  from: Bytes!
+  to: Bytes!
 }

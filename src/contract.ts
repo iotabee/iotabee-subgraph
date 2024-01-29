@@ -14,32 +14,38 @@ import {
 } from "../generated/Contract/Pool"
 import {Snapshot, SnapshotFull} from "../generated/schema"
 
-const liquidity = ['49954253880', '55766298892962304', '12013501874740530845', '1613186886204'];
-const tvl = ['99909.787298', '20409.661212', '215.976725202', '11.859770078'];
+// const liquidity = ['49954253880', '55766298892962304', '12013501874740530845', '1613186886204'];
+// const tvl = ['99909.787298', '20409.661212', '215.976725202', '11.859770078'];
 const ethPrice = '2477.66';
 const btcPrice = '41575.30';
+const USDT = '0xa4f8C7C1018b9dD3be5835bF00f335D9910aF6Bd'.toLowerCase();
+const USDC = '0xeCE555d37C37D55a6341b80cF35ef3BC57401d1A'.toLowerCase();
+const WSMR = '0x6C890075406C5DF08b427609E3A2eAD1851AD68D'.toLowerCase();
+const ETH = '0x4638C9fb4eFFe36C49d8931BB713126063BF38f9'.toLowerCase();
+const WBTC = '0xb0119035d08CB5f467F9ed8Eae4E5f9626Aa7402'.toLowerCase();
 
 function getIndexOfPool(positions: Contract__positionsResult): number {
   const token0 = positions.getToken0();
   const token1 = positions.getToken1();
+  log.info('token0 {}, token1 {}', [token0.toHexString(), token1.toHexString()]);
   if (
-    token0.equals(Address.fromString('0xa4f8C7C1018b9dD3be5835bF00f335D9910aF6Bd')) &&
-    token1.equals(Address.fromString('0xeCE555d37C37D55a6341b80cF35ef3BC57401d1A'))
+    token0.equals(Address.fromString(USDT)) &&
+    token1.equals(Address.fromString(USDC))
   ) {
     return 0;
   } else if (
-    token0.equals(Address.fromString('0x6C890075406C5DF08b427609E3A2eAD1851AD68D')) &&
-    token1.equals(Address.fromString('0xa4f8C7C1018b9dD3be5835bF00f335D9910aF6Bd'))
+    token0.equals(Address.fromString(WSMR)) &&
+    token1.equals(Address.fromString(USDT))
   ) {
     return 1;
   } else if (
-    token0.equals(Address.fromString('0x4638C9fb4eFFe36C49d8931BB713126063BF38f9')) &&
-    token1.equals(Address.fromString('0x6C890075406C5DF08b427609E3A2eAD1851AD68D'))
+    token0.equals(Address.fromString(ETH)) &&
+    token1.equals(Address.fromString(WSMR))
   ) {
     return 2;
   } else if (
-    token0.equals(Address.fromString('0x6C890075406C5DF08b427609E3A2eAD1851AD68D')) &&
-    token1.equals(Address.fromString('0xb0119035d08CB5f467F9ed8Eae4E5f9626Aa7402'))
+    token0.equals(Address.fromString(WSMR)) &&
+    token1.equals(Address.fromString(WBTC))
   ) {
     return 3;
   }
@@ -50,40 +56,61 @@ function getPoolAddr(positions: Contract__positionsResult): string {
   const token0 = positions.getToken0();
   const token1 = positions.getToken1();
   if (
-    token0.equals(Address.fromString('0xa4f8C7C1018b9dD3be5835bF00f335D9910aF6Bd')) &&
-    token1.equals(Address.fromString('0xeCE555d37C37D55a6341b80cF35ef3BC57401d1A'))
+    token0.equals(Address.fromString(USDT)) &&
+    token1.equals(Address.fromString(USDC))
   ) {
     return '0x5f071D7428Fec69DA5F0aa8D5509ef980638e2aF';
   } else if (
-    token0.equals(Address.fromString('0x6C890075406C5DF08b427609E3A2eAD1851AD68D')) &&
-    token1.equals(Address.fromString('0xa4f8C7C1018b9dD3be5835bF00f335D9910aF6Bd'))
+    token0.equals(Address.fromString(WSMR)) &&
+    token1.equals(Address.fromString(USDT))
   ) {
     return '0x6429C0764DA4f7BaeCf0c423A9f4911bF1Cb0eBF';
   } else if (
-    token0.equals(Address.fromString('0x4638C9fb4eFFe36C49d8931BB713126063BF38f9')) &&
-    token1.equals(Address.fromString('0x6C890075406C5DF08b427609E3A2eAD1851AD68D'))
+    token0.equals(Address.fromString(ETH)) &&
+    token1.equals(Address.fromString(WSMR))
   ) {
     return '0xeDaD279fFC1279E44FCAcA4f09991EE3b30Fec1d';
   } else if (
-    token0.equals(Address.fromString('0x6C890075406C5DF08b427609E3A2eAD1851AD68D')) &&
-    token1.equals(Address.fromString('0xb0119035d08CB5f467F9ed8Eae4E5f9626Aa7402'))
+    token0.equals(Address.fromString(WSMR)) &&
+    token1.equals(Address.fromString(WBTC))
   ) {
     return '0xf8c42EA31B9fBf87dA7f7b5F47736652bDC00436';
   }
   return '0x0';
 }
 
+function getDecimal(addr: Address): i32 {
+  if (addr.equals(Address.fromString(USDT))) {
+    return 6;
+  } else if (addr.equals(Address.fromString(USDC))) {
+    return 6;
+  } else if (addr.equals(Address.fromString(WSMR))) {
+    return 18;
+  } else if (addr.equals(Address.fromString(ETH))) {
+    return 18;
+  } else if (addr.equals(Address.fromString(WBTC))) {
+    return 8;
+  }
+  return 18;
+}
+
 function calculateLiquidity(positions: Contract__positionsResult): BigDecimal {
   const lq = positions.getLiquidity();
   const addr = getPoolAddr(positions);
   const index = getIndexOfPool(positions);
+  log.info('lq {}, addr {}, index {}', [lq.toString(), addr, index.toString()]);
 
   const poolContract = Pool.bind(Address.fromString(addr));
   const tick = poolContract.slot0().getTick();
   const liquidity = new BigDecimal(poolContract.liquidity());
   const sqrt10001 = Math.sqrt(1.0001);
-  const reserve0 = liquidity.div(BigDecimal.fromString(Math.pow(sqrt10001, tick).toString()));
-  const reserve1 = liquidity.times(BigDecimal.fromString(Math.pow(sqrt10001, tick).toString()));
+  const decimals0 = getDecimal(positions.getToken0());
+  const decimals1 = getDecimal(positions.getToken1());
+  const pow0 = BigInt.fromI32(10).pow(u8(decimals0)).toBigDecimal();
+  const pow1 = BigInt.fromI32(10).pow(u8(decimals1)).toBigDecimal();
+  const reserve0 = liquidity.div(BigDecimal.fromString(Math.pow(sqrt10001, tick).toString())).div(pow0);
+  const reserve1 = liquidity.times(BigDecimal.fromString(Math.pow(sqrt10001, tick).toString())).div(pow1);
+  log.info('liquidity {}, tick {}, reserve0 {}, reserve1 {}', [liquidity.toString(), tick.toString(), reserve0.toString(), reserve1.toString()]);
   let tvl = BigDecimal.fromString('0');
   if (index === 0) {
     tvl = reserve0.plus(reserve1);
@@ -94,6 +121,7 @@ function calculateLiquidity(positions: Contract__positionsResult): BigDecimal {
   } else if (index === 3) {
     tvl = reserve0.times(BigDecimal.fromString('2')).times(BigDecimal.fromString(btcPrice));
   }
+  log.info('tvl {}', [tvl.toString()]);
 
   return new BigDecimal(lq).times(tvl).div(liquidity);
 }
@@ -108,14 +136,15 @@ function handleLiquidity(tokenId: BigInt, addr: Address, timestamp: BigInt): voi
   const poolContract = Contract.bind(addr);
   const positions = poolContract.positions(tokenId);
   const user = poolContract.ownerOf(tokenId);
+  // log.info('Token Id {}, owner {}', [tokenId.toString(), user.toHexString()]);
 
   const index = getIndexOfPool(positions);
+  log.info('Index {}', [index.toString()]);
   if (index === -1) {
     return;
   }
 
-  const ts = Math.ceil(timestamp.toI32() / 3600) * 3600;
-  const sfid = `${user}_account`;
+  const sfid = `${user.toHexString()}_account`;
   let snapshotFull = SnapshotFull.load(sfid);
   if (snapshotFull == null) {
     snapshotFull = new SnapshotFull(sfid);
@@ -124,11 +153,21 @@ function handleLiquidity(tokenId: BigInt, addr: Address, timestamp: BigInt): voi
     snapshotFull.save();
   }
   // TODO: update value
+  snapshotFull = SnapshotFull.load(sfid);
+  if (snapshotFull == null) {
+    return;
+  }
+
   let value = calculateLiquidity(positions);
-  snapshotFull.values![i32(index)] = value || BigDecimal.zero();
+  log.info('value {}, index {}', [(value || BigDecimal.zero()).toString(), i32(index).toString()]);
+  const values = snapshotFull.values!;
+  values[i32(index)] = (value || BigDecimal.zero());
+  snapshotFull.values = values;
+  log.info('values {} {} {} {}', values.map<string>((v: BigDecimal) => v.toString()));
   snapshotFull.save();
 
-  const id = `${user}_hourly_${ts}`;
+  const ts = Math.ceil(timestamp.toI32() / 3600) * 3600;
+  const id = `${user.toHexString()}_hourly_${ts.toString()}`;
   let snapshot = Snapshot.load(id);
   if (snapshot == null) {
     snapshot = new Snapshot(id);
@@ -140,7 +179,6 @@ function handleLiquidity(tokenId: BigInt, addr: Address, timestamp: BigInt): voi
 }
 
 export function handleDecreaseLiquidity(event: DecreaseLiquidity): void {
-  log.info('decrease liquidity', []);
   const tokenId = event.params.tokenId;
   const addr = event.address;
   const timestamp = event.block.timestamp;
@@ -148,13 +186,10 @@ export function handleDecreaseLiquidity(event: DecreaseLiquidity): void {
 }
 
 export function handleIncreaseLiquidity(event: IncreaseLiquidity): void {
-  log.info('increase liquidity', []);
   const tokenId = event.params.tokenId;
   const addr = event.address;
   const timestamp = event.block.timestamp;
   handleLiquidity(tokenId, addr, timestamp);
 }
 
-export function handleTransfer(event: Transfer): void {
-  console.log(`${event.address}`);
-}
+export function handleTransfer(event: Transfer): void {}

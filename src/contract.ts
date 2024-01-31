@@ -119,7 +119,7 @@ function calculateLiquidity(positions: Contract__positionsResult): BigDecimal {
   } else if (index === 2) {
     tvl = reserve0.times(BigDecimal.fromString('2')).times(BigDecimal.fromString(ethPrice));
   } else if (index === 3) {
-    tvl = reserve0.times(BigDecimal.fromString('2')).times(BigDecimal.fromString(btcPrice));
+    tvl = reserve1.times(BigDecimal.fromString('2')).times(BigDecimal.fromString(btcPrice));
   }
   log.info('tvl {}', [tvl.toString()]);
 
@@ -134,9 +134,16 @@ export function handleCollect(event: Collect): void {}
 
 function handleLiquidity(tokenId: BigInt, addr: Address, timestamp: BigInt): void {
   const poolContract = Contract.bind(addr);
-  const positions = poolContract.positions(tokenId);
+  log.info('1', []);
+  const tryPositions = poolContract.try_positions(tokenId);
+  if (tryPositions.reverted) {
+    return;
+  }
+
+  const positions = tryPositions.value;
+  log.info('2 fee {}', [positions.getFee().toString()]);
   const user = poolContract.ownerOf(tokenId);
-  // log.info('Token Id {}, owner {}', [tokenId.toString(), user.toHexString()]);
+  log.info('Token Id {}, owner {}', [tokenId.toString(), user.toHexString()]);
 
   const index = getIndexOfPool(positions);
   log.info('Index {}', [index.toString()]);
@@ -166,12 +173,12 @@ function handleLiquidity(tokenId: BigInt, addr: Address, timestamp: BigInt): voi
   log.info('values {} {} {} {}', values.map<string>((v: BigDecimal) => v.toString()));
   snapshotFull.save();
 
-  const ts = Math.ceil(timestamp.toI32() / 3600) * 3600;
+  const ts = i32(Math.ceil(timestamp.toI32() / 3600) * 3600);
   const id = `${user.toHexString()}_hourly_${ts.toString()}`;
   let snapshot = Snapshot.load(id);
   if (snapshot == null) {
     snapshot = new Snapshot(id);
-    snapshot.timestamp = BigInt.fromI32(i32(ts));
+    snapshot.timestamp = BigInt.fromI32(ts);
     snapshot.user = user;
   }
   snapshot.value = snapshotFull.values!.reduce((a, b) => a.plus(b), BigDecimal.zero())

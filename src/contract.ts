@@ -113,13 +113,16 @@ function calculateLiquidity(positions: Contract__positionsResult): BigDecimal {
   log.info('liquidity {}, tick {}, reserve0 {}, reserve1 {}', [liquidity.toString(), tick.toString(), reserve0.toString(), reserve1.toString()]);
   let tvl = BigDecimal.fromString('0');
   if (index === 0) {
-    tvl = reserve0.plus(reserve1);
+    // tvl = reserve0.plus(reserve1);
+    tvl = reserve0;
   } else if (index === 1) {
     tvl = reserve1.times(BigDecimal.fromString('2'));
   } else if (index === 2) {
-    tvl = reserve0.times(BigDecimal.fromString('2')).times(BigDecimal.fromString(ethPrice));
+    // tvl = reserve0.times(BigDecimal.fromString('2')).times(BigDecimal.fromString(ethPrice));
+    tvl = reserve0.times(BigDecimal.fromString(ethPrice));
   } else if (index === 3) {
-    tvl = reserve1.times(BigDecimal.fromString('2')).times(BigDecimal.fromString(btcPrice));
+    // tvl = reserve1.times(BigDecimal.fromString('2')).times(BigDecimal.fromString(btcPrice));
+    tvl = reserve1.times(BigDecimal.fromString(btcPrice));
   }
   log.info('tvl {}', [tvl.toString()]);
 
